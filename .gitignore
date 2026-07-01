@@ -1,0 +1,30 @@
+# Environments
+venv/
+.venv/
+env/
+
+# Environment Variables
+.env
+.env.local
+.env.development
+
+# VS Code 
+.vscode/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Jupyter Notebooks (For the XGBoost ML work)
+.ipynb_checkpoints/
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
