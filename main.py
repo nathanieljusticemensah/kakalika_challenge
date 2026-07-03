@@ -1,7 +1,7 @@
 # this file contains the entry point of the FATAPI
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import products, logistics
+from routers import logistics, orders, products
 from database import get_supabase_client
 
 app = FastAPI(title="AgriTech MVP API", version="1.0.0")
@@ -18,6 +18,7 @@ app.add_middleware(
 # Register the routers
 app.include_router(products.router)
 app.include_router(logistics.router)
+app.include_router(orders.router)
 
 @app.get("/")
 def read_root():
