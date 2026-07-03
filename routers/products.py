@@ -7,6 +7,7 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile, status
+from shapely import wkb
 from supabase import ClientOptions, create_client
 
 from database import get_supabase_client
@@ -99,8 +100,25 @@ def _normalize_public_url(public_url_response: Any) -> str:
 def _normalize_product_row(row: dict[str, Any]) -> dict[str, Any]:
     normalized_row = dict(row)
     location = normalized_row.get("location")
-    if location is not None and not isinstance(location, str):
-        normalized_row["location"] = str(location)
+    if location is None:
+        return normalized_row
+
+    try:
+        if isinstance(location, str):
+            geometry = wkb.loads(location, hex=True)
+        elif isinstance(location, (bytes, bytearray)):
+            geometry = wkb.loads(bytes(location))
+        else:
+            geometry = None
+
+        if geometry is not None:
+            normalized_row["location"] = {"lat": float(geometry.y), "lng": float(geometry.x)}
+        elif not isinstance(location, dict):
+            normalized_row["location"] = str(location)
+    except Exception:
+        if not isinstance(location, dict):
+            normalized_row["location"] = str(location)
+
     return normalized_row
 
 
@@ -192,7 +210,6 @@ async def get_products(
     try:
         response = query_builder.order("created_at", desc=True).execute()
     except Exception as exc:  # pragma: no cover - network/client failures depend on Supabase runtime
-        print(f"DEBUG - actual error: {exc}", flush=True)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Unable to fetch products") from exc
 
     rows = getattr(response, "data", None) or []

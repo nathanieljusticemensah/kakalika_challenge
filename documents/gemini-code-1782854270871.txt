@@ -1,0 +1,85 @@
+# GDSS-PSInno AgriTech Innovation Challenge: System Requirements & Implementation Plan
+
+## 1. Project Overview
+**Objective:** Develop a Farmer-to-Buyer Digital Marketplace to reduce Ghana's post-harvest vegetable losses by connecting smallholder farmers, buyers, and transport providers.
+**Target Output:** A functional Minimum Viable Product (MVP) with frontend UI, backend database, and a live demo of the end-to-end workflow by July 10, 2026.
+
+---
+
+## 2. Updated Team Allocation
+*   **Nana Kojo (Team Lead & AI Engineer):** Core ML architecture (XGBoost matching models), predictive transport cost algorithms, and USSD/SMS offline logic.
+*   **Frederick Abila (Logistics & Transport Lead):** Full-stack development of the Transport Provider portal, integration of geolocation/mapping APIs, route coordination, and live tracking workflows.
+*   **Daniel Darko Danquah (Backend & Cloud Engineer):** Database design (PostgreSQL/MongoDB), API development, secure user authentication, and Mobile Money (MoMo) integration.
+*   **Nana Afia Amaning (Product Manager & UX/Data Lead):** UI/UX wireframing, dataset curation (agricultural prices, geographic mapping data), stakeholder research, and final live demo presentation coordination.
+
+---
+
+## 3. Requirement Analysis
+
+### A. Core Marketplace Features (The "Must-Haves")
+**1. Farmer Module**
+*   *Registration & Profiles:* Secure sign-up with farm location data.
+*   *Inventory Management:* Upload produce (images, crop type, quantity in kg/baskets, price, location).
+*   *Order Management:* Receive notifications, chat with buyers, and request transport.
+
+**2. Buyer Module**
+*   *Search & Discovery:* Filter produce by category (tomatoes, peppers, etc.), maximum price, radius/distance, and volume.
+*   *Transaction Flow:* Direct ordering, Mobile Money (MoMo) checkout.
+*   *Order Tracking:* History, receipts, and delivery status monitoring.
+
+**3. Logistics & Transport Module (Frederick's Domain)**
+*   *Driver Profiles:* Vehicle type registration (tricycle, van, truck) and load capacity.
+*   *Job Board/Push Notifications:* Receive delivery requests based on proximity to the farmer.
+*   *Trip Management:* Accept/reject trips, status updates (Arrived at Farm, In Transit, Delivered).
+
+### B. Competitive Edge Features (The "Stand-Outs" / Bonuses)
+**1. Smart Matching & Recommendation System (Kojo)**
+*   *AI Pricing Estimation:* An XGBoost regression model to estimate delivery costs based on distance, road conditions, and payload size.
+*   *Proximity Matching:* Automatically ping the 3 closest available drivers when a buyer makes a purchase.
+
+**2. Offline & Low-Bandwidth Access**
+*   *USSD/SMS Integration:* Allow farmers without smartphones to dial a shortcode (e.g., *713#) to check market prices or list a new batch of harvested vegetables.
+
+---
+
+## 4. Technical Implementation & Architecture ("How to Achieve It")
+
+### Recommended Tech Stack
+*   **Frontend (User Interfaces):** Flutter (for a unified iOS/Android mobile app) OR React/Next.js (for a highly responsive web application). 
+*   **Backend (Core Logic):** Node.js with Express OR Python (FastAPI/Django) – Python is highly recommended to easily serve Kojo's machine learning models.
+*   **Database:** PostgreSQL (Ideal for relational data like user roles, orders, and financial transactions) + PostGIS extension for spatial/location queries.
+*   **Mapping/Geolocation:** Mapbox API or Google Maps API (Frederick will use this for route plotting and distance calculation).
+*   **Payments:** Paystack API or Hubtel API for seamless Ghana MoMo integration.
+*   **Offline/USSD:** Africa's Talking API (provides easy SMS and USSD infrastructure for Africa).
+
+### Key Architectural Workflows
+
+**1. The Data Pipeline (How ML integrates)**
+*   *Data Collection:* Afia curates dummy dataset of Tarkwa farmers and local drivers.
+*   *Training:* Kojo trains an XGBoost model on historical distance-to-cost ratios.
+*   *Deployment:* The Python backend exposes an endpoint `/api/estimate-shipping` that Frederick's frontend calls when a buyer views their cart.
+
+**2. The Logistics Engine (Frederick's Implementation Steps)**
+*   *Step 1 (Location):* Capture GPS coordinates of the Farmer and Buyer during registration/checkout.
+*   *Step 2 (Routing):* Use Mapbox API to calculate the driving distance between Point A and Point B.
+*   *Step 3 (Matching):* Query the database for drivers with a status of "Available" within a 10km radius of the Farmer.
+*   *Step 4 (Tracking):* Implement WebSockets (e.g., Socket.io) so that when a driver clicks "Picked Up," the buyer's app instantly updates to "In Transit" without refreshing the page.
+
+**3. The Payment Flow (Daniel's Implementation Steps)**
+*   Buyer selects produce and clicks "Pay".
+*   Backend initiates a Paystack MoMo prompt to the buyer's phone.
+*   Upon successful PIN entry, the funds are held in an escrow-like state on the platform.
+*   Only when the driver marks "Delivered" and the buyer confirms, do the funds disburse to the Farmer and Driver wallets.
+
+---
+
+## 5. Next Immediate Steps for the Team
+1.  **Daniel:** Set up the GitHub repository, initialize the backend framework, and design the database schema (Users, Products, Orders, Transport).
+2.  **Frederick:** Register for a Mapbox API key and begin wireframing the driver's job acceptance screen and map view.
+3.  **Kojo:** Set up the Python environment, write the mock dataset script, and build the initial XGBoost cost-prediction pipeline.
+4.  **Afia:** Outline the user stories, gather dummy produce images, and draft the script for the live demo presentation on July 24.
+```eof
+
+This document provides a highly structured roadmap that your team can immediately use to divide tasks and start coding. Frederick's role is now clearly defined around the APIs, web-sockets, and mapping required for the delivery coordination, which perfectly sets up the data needed for your AI models.
+
+To get started on the technical side, do you want to define the specific database tables Daniel needs to build first, or would you like to map out the exact data inputs your XGBoost model will need for the smart matching bonus?
