@@ -168,6 +168,40 @@ export async function updateDeliveryStatus(
   return handle<Delivery>(res);
 }
 
+// ---- Payments ------------------------------------------------------------
+
+export interface InitiatePaymentResult {
+  authorization_url: string;
+  reference: string;
+  amount_pesewa: number;
+  amount_ghs: number;
+}
+
+export async function initiatePayment(orderId: string): Promise<InitiatePaymentResult> {
+  const form = new FormData();
+  form.set("order_id", orderId);
+  const res = await fetch(`${API_BASE_URL}/payments/initiate`, {
+    method: "POST",
+    headers: await authHeader(),
+    body: form,
+  });
+  return handle<InitiatePaymentResult>(res);
+}
+
+export interface VerifyPaymentResult {
+  paid: boolean;
+  status: string | null;
+  order_id: string;
+}
+
+export async function verifyPayment(reference: string): Promise<VerifyPaymentResult> {
+  const res = await fetch(
+    `${API_BASE_URL}/payments/verify?reference=${encodeURIComponent(reference)}`,
+    { headers: await authHeader() },
+  );
+  return handle<VerifyPaymentResult>(res);
+}
+
 // ---- Logistics / ML ------------------------------------------------------
 
 export interface EstimateCostInput {

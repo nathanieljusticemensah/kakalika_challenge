@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAsync } from "../../hooks/useAsync";
 import {
   assignDriver,
@@ -8,6 +8,8 @@ import {
   listProducts,
 } from "../../lib/api";
 import { fetchDeliveriesByOrderIds } from "../../lib/deliveries";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../context/AuthContext";
 import type { Delivery, NearbyDriver, Order, Product } from "../../types";
 import { formatDate, formatGHS, metersToKm, titleCase } from "../../lib/format";
 import {
@@ -43,6 +45,8 @@ async function loadFarmerData(): Promise<FarmerData> {
 }
 
 export function FarmerOrders() {
+  const { profile } = useAuth();
+  const farmerId = profile?.id ?? "";
   const { data, loading, error, reload } = useAsync(loadFarmerData, []);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -50,6 +54,32 @@ export function FarmerOrders() {
     delivery: Delivery;
     order: Order;
   } | null>(null);
+
+  // Live updates: refresh when this farmer's orders or their deliveries change.
+  useEffect(() => {
+    if (!farmerId) return;
+    const channel = supabase
+      .channel(`farmer-orders-${farmerId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `farmer_id=eq.${farmerId}`,
+        },
+        () => reload(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "deliveries" },
+        () => reload(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [farmerId, reload]);
 
   async function handleCreateDelivery(order: Order) {
     setActionError(null);

@@ -1,6 +1,9 @@
+import { useEffect } from "react";
 import { useAsync } from "../../hooks/useAsync";
 import { listOrders, listProducts } from "../../lib/api";
 import { fetchDeliveriesByOrderIds } from "../../lib/deliveries";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../context/AuthContext";
 import type { Delivery, Order, Product } from "../../types";
 import { formatDate, formatGHS, titleCase } from "../../lib/format";
 import {
@@ -36,7 +39,35 @@ async function loadBuyerData(): Promise<BuyerData> {
 }
 
 export function MyOrders() {
+  const { profile } = useAuth();
+  const buyerId = profile?.id ?? "";
   const { data, loading, error, reload } = useAsync(loadBuyerData, []);
+
+  // Live updates: refresh when this buyer's orders or their deliveries change.
+  useEffect(() => {
+    if (!buyerId) return;
+    const channel = supabase
+      .channel(`buyer-orders-${buyerId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `buyer_id=eq.${buyerId}`,
+        },
+        () => reload(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "deliveries" },
+        () => reload(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [buyerId, reload]);
 
   return (
     <div>

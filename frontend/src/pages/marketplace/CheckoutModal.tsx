@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { createOrder, estimateCost } from "../../lib/api";
+import { createOrder, estimateCost, initiatePayment } from "../../lib/api";
 import type { LatLng, Product } from "../../types";
 import { formatGHS, titleCase } from "../../lib/format";
 import { Alert, Button, Field, Input } from "../../components/ui";
@@ -26,7 +25,6 @@ export function CheckoutModal({
   onClose: () => void;
   onOrdered: () => void;
 }) {
-  const navigate = useNavigate();
   const [quantity, setQuantity] = useState("1");
   const [delivery, setDelivery] = useState<LatLngValue>(DEFAULT_LOCATION);
   const [estimate, setEstimate] = useState<number | null>(null);
@@ -86,18 +84,20 @@ export function CheckoutModal({
 
     setBusy(true);
     try {
-      await createOrder({
+      const order = await createOrder({
         product_id: product.id,
         quantity_ordered: qty,
         delivery_lat: Number(delivery.lat),
         delivery_lng: Number(delivery.lng),
       });
       onOrdered();
-      navigate("/marketplace/orders");
+      const { authorization_url } = await initiatePayment(order.id);
+      // Hand off to Paystack; verification happens on return.
+      window.location.assign(authorization_url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to place order.");
-    } finally {
       setBusy(false);
+      return;
     }
   }
 
@@ -161,8 +161,11 @@ export function CheckoutModal({
         </div>
 
         <Button type="submit" loading={busy} className="w-full">
-          Place order
+          Pay with Paystack
         </Button>
+        <p className="text-center text-xs text-slate-400">
+          You'll be redirected to Paystack to complete payment securely.
+        </p>
       </form>
     </Modal>
   );
