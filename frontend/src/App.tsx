@@ -8,6 +8,7 @@ import { FarmerDashboard } from "./pages/farmer/FarmerDashboard";
 import { FarmerOrders } from "./pages/farmer/FarmerOrders";
 import { Marketplace } from "./pages/marketplace/Marketplace";
 import { MyOrders } from "./pages/marketplace/MyOrders";
+import { PaymentCallback } from "./pages/marketplace/PaymentCallback";
 import { DriverJobBoard } from "./pages/driver/DriverJobBoard";
 import { DriverTrips } from "./pages/driver/DriverTrips";
 import { Spinner } from "./components/ui";
@@ -58,6 +59,10 @@ export default function App() {
           >
             <Route path="/marketplace" element={<Marketplace />} />
             <Route path="/marketplace/orders" element={<MyOrders />} />
+            <Route
+              path="/marketplace/orders/payment-callback"
+              element={<PaymentCallback />}
+            />
           </Route>
 
           {/* Driver / logistics portal */}

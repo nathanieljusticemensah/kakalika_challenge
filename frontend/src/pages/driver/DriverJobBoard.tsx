@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAsync } from "../../hooks/useAsync";
 import {
@@ -6,6 +6,7 @@ import {
   fetchOpenDeliveries,
   setDriverAvailability,
 } from "../../lib/deliveries";
+import { supabase } from "../../lib/supabase";
 import { formatDate, formatGHS } from "../../lib/format";
 import {
   Alert,
@@ -27,6 +28,23 @@ export function DriverJobBoard() {
   const [error, setError] = useState<string | null>(null);
 
   const isAvailable = Boolean(details.data?.is_available);
+
+  // Live updates: refresh the job board whenever a delivery is created,
+  // assigned, or cancelled so open jobs appear/disappear without a manual
+  // refresh.
+  useEffect(() => {
+    const channel = supabase
+      .channel("driver-job-board")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "deliveries" },
+        () => open.reload(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [open.reload]);
 
   async function toggleAvailability() {
     setError(null);

@@ -1,2 +1,1 @@
-from . import deliveries, logistics, products, orders
- 
+from . import deliveries, logistics, orders, payments, products
