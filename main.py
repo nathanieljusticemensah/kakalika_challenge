@@ -1,7 +1,7 @@
 # this file contains the entry point of the FATAPI
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import deliveries, logistics, orders, payments, products
+from routers import deliveries, logistics, orders, payments, products, ussd
 from database import get_supabase_client
 
 app = FastAPI(title="AgriTech MVP API", version="1.0.0")
@@ -20,6 +20,7 @@ app.include_router(products.router)
 app.include_router(logistics.router)
 app.include_router(orders.router)
 app.include_router(deliveries.router)
+app.include_router(ussd.router)
 app.include_router(payments.router)
 
 @app.get("/")
