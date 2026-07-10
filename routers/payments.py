@@ -80,15 +80,16 @@ def _paystack_secret_key() -> str:
     return key
 
 
+# TEMPORARY HACKATHON SHORTCUT: we don't collect buyer emails during onboarding
+# yet, and Paystack validates the email's domain (synthesized .example / .local
+# addresses were rejected with "Invalid Email Address Passed"). Every buyer's
+# payment is initiated under this single real inbox until onboarding collects
+# a real per-buyer email — do not ship this to production as-is.
+_FALLBACK_BUYER_EMAIL = "danquahdaniel556@gmail.com"
+
+
 def _paystack_email_for_buyer(profile: dict[str, Any]) -> str:
-    # We don't collect emails yet, so synthesise a stable placeholder Paystack
-    # will accept. Prefer phone-derived so receipts still look meaningful.
-    phone = profile.get("phone_number")
-    if phone:
-        cleaned = "".join(ch for ch in str(phone) if ch.isalnum())
-        if cleaned:
-            return f"{cleaned}@buyer.agritech.local"
-    return f"{profile['id']}@buyer.agritech.local"
+    return _FALLBACK_BUYER_EMAIL
 
 
 @router.post("/payments/initiate")
@@ -149,8 +150,10 @@ async def initiate_payment(
     frontend_base = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5173")
     callback_url = f"{frontend_base.rstrip('/')}/marketplace/orders/payment-callback"
 
+    email = _paystack_email_for_buyer(profile)
+
     payload = {
-        "email": _paystack_email_for_buyer(profile),
+        "email": email,
         "amount": amount_pesewa,
         "currency": "GHS",
         "callback_url": callback_url,
