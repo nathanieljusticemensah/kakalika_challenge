@@ -438,6 +438,70 @@ async def assign_driver(
     return updated_delivery
 
 
+@router.patch("/deliveries/{delivery_id}/cancel")
+async def cancel_delivery(
+    delivery_id: UUID = Path(...),
+    authorization: Optional[str] = Header(default=None, alias="Authorization", description="Bearer access token"),
+):
+    farmer_profile, authed_supabase = _get_farmer_profile(authorization)
+    farmer_id = farmer_profile["id"]
+
+    try:
+        delivery_response = authed_supabase.table("deliveries").select("id, order_id, driver_id, status").eq("id", str(delivery_id)).limit(1).execute()
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Unable to load delivery") from exc
+
+    delivery_rows = getattr(delivery_response, "data", None) or []
+    delivery = delivery_rows[0] if delivery_rows else None
+    if not delivery:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Delivery not found")
+
+    order_id = delivery.get("order_id")
+    if not order_id:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Delivery order reference is missing")
+
+    try:
+        order_response = authed_supabase.table("orders").select("farmer_id").eq("id", str(order_id)).limit(1).execute()
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Unable to verify delivery ownership") from exc
+
+    order_rows = getattr(order_response, "data", None) or []
+    order = order_rows[0] if order_rows else None
+    if not order or order.get("farmer_id") != farmer_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the delivery owner can cancel this delivery")
+
+    current_status = delivery.get("status")
+    if current_status not in ("pending", "driver_assigned"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Delivery status is '{current_status}' and cannot be cancelled",
+        )
+
+    try:
+        response = authed_supabase.table("deliveries").update({"status": "cancelled"}).eq("id", str(delivery_id)).select("*").execute()
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Unable to cancel delivery") from exc
+
+    updated_rows = getattr(response, "data", None) or []
+    updated_delivery = updated_rows[0] if updated_rows else None
+    if not updated_delivery:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Updated delivery was not returned")
+
+    driver_id = delivery.get("driver_id")
+    if driver_id:
+        try:
+            authed_supabase.table("driver_details").update({"is_available": True}).eq("profile_id", str(driver_id)).execute()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Delivery was cancelled but failed to free up the driver's availability",
+            ) from exc
+
+    updated_delivery = _normalize_location_field(updated_delivery, "pickup_location")
+    updated_delivery = _normalize_location_field(updated_delivery, "dropoff_location")
+    return updated_delivery
+
+
 @router.patch("/deliveries/{delivery_id}/status")
 async def update_delivery_status(
     delivery_id: UUID = Path(...),

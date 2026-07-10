@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Form, Header, HTTPException, status
+from fastapi import APIRouter, Form, Header, HTTPException, Path, status
 from shapely import wkb
 from supabase import ClientOptions, create_client
 
@@ -186,3 +186,43 @@ async def get_orders(
 
     rows = getattr(response, "data", None) or []
     return [_normalize_delivery_address(row) for row in rows]
+
+
+@router.patch("/orders/{order_id}/cancel", response_model=OrderRead)
+async def cancel_order(
+    order_id: UUID = Path(...),
+    authorization: Optional[str] = Header(default=None, alias="Authorization", description="Bearer access token"),
+):
+    buyer_profile, authed_supabase = _get_buyer_profile(authorization)
+    buyer_id = buyer_profile["id"]
+
+    try:
+        order_response = authed_supabase.table("orders").select("id, buyer_id, status").eq("id", str(order_id)).limit(1).execute()
+    except Exception as exc:  # pragma: no cover - network/client failures depend on Supabase runtime
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Unable to load order") from exc
+
+    order_rows = getattr(order_response, "data", None) or []
+    order = order_rows[0] if order_rows else None
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    if order.get("buyer_id") != buyer_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only cancel your own orders")
+
+    if order.get("status") != "pending_payment":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Order status is '{order.get('status')}' and cannot be cancelled",
+        )
+
+    try:
+        response = authed_supabase.table("orders").update({"status": "cancelled"}).eq("id", str(order_id)).select("*").execute()
+    except Exception as exc:  # pragma: no cover - network/client failures depend on Supabase runtime
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to cancel order") from exc
+
+    updated_rows = getattr(response, "data", None) or []
+    updated_order = updated_rows[0] if updated_rows else None
+    if not updated_order:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Order was not returned after cancellation")
+
+    return _normalize_delivery_address(updated_order)
