@@ -17,13 +17,23 @@ _model_bundle: Optional[dict] = None
 
 def _load_model_bundle() -> dict:
     """Lazily load and cache the trained model + its expected feature order.
-    See ml/train_cost_model.py for how cost_model.pkl was produced."""
+    See ml/train_cost_model.py for how cost_model.pkl was produced.
+
+    Catches broadly, not just FileNotFoundError: an unhandled exception here
+    (e.g. UnpicklingError on a corrupt file, or ModuleNotFoundError if xgboost
+    isn't installed in whatever environment is serving requests) propagates
+    past FastAPI's routing into Starlette's ServerErrorMiddleware, which sits
+    outside CORSMiddleware — that fallback 500 response carries no CORS
+    headers at all, which browsers report as a CORS failure rather than the
+    real 500. Converting every failure into a clean HTTPException keeps the
+    response inside CORSMiddleware's normal header injection.
+    """
     global _model_bundle
     if _model_bundle is None:
         try:
             with open(MODEL_PATH, "rb") as f:
                 _model_bundle = pickle.load(f)
-        except FileNotFoundError as exc:
+        except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Cost model is not available. Run ml/train_cost_model.py to generate ml/cost_model.pkl.",
