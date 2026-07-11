@@ -6,7 +6,19 @@
 // on the `deliveries` table governs what each driver can see.
 
 import { supabase } from "./supabase";
+import { normalizeLocation } from "./wkb";
 import type { Delivery } from "../types";
+
+// Supabase returns geography columns as raw EWKB hex, not {lat, lng} — the
+// FastAPI routes decode that server-side, but these reads go straight to
+// Supabase, so decode here too.
+function normalizeDelivery(row: Delivery): Delivery {
+  return {
+    ...row,
+    pickup_location: normalizeLocation(row.pickup_location),
+    dropoff_location: normalizeLocation(row.dropoff_location),
+  };
+}
 
 // Deliveries still waiting for a driver — the open job board.
 export async function fetchOpenDeliveries(): Promise<Delivery[]> {
@@ -16,7 +28,7 @@ export async function fetchOpenDeliveries(): Promise<Delivery[]> {
     .eq("status", "pending")
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []) as Delivery[];
+  return ((data ?? []) as Delivery[]).map(normalizeDelivery);
 }
 
 // Deliveries assigned to the given driver (their active + past trips).
@@ -27,7 +39,7 @@ export async function fetchDriverDeliveries(driverId: string): Promise<Delivery[
     .eq("driver_id", driverId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []) as Delivery[];
+  return ((data ?? []) as Delivery[]).map(normalizeDelivery);
 }
 
 // Deliveries linked to a set of orders — used by the farmer to track the
@@ -42,7 +54,7 @@ export async function fetchDeliveriesByOrderIds(
     .in("order_id", orderIds)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []) as Delivery[];
+  return ((data ?? []) as Delivery[]).map(normalizeDelivery);
 }
 
 // A driver's own driver_details row (availability, vehicle, capacity).

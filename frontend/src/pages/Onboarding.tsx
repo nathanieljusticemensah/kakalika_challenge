@@ -49,52 +49,73 @@ export function Onboarding() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!session?.user) return;
     setBusy(true);
     setError(null);
 
-    const profilePayload = {
-      id: session.user.id,
-      full_name: fullName.trim(),
-      phone_number: session.user.phone ?? null,
-      role: selectedRole,
-      region: region.trim() || null,
-      location: ewkt(location),
-    };
+    try {
+      // Read the session straight from the Supabase client rather than trusting
+      // AuthContext's `session`: that value is populated by an onAuthStateChange
+      // listener that fires asynchronously after sign-in, so it can still be null
+      // here even though Supabase itself already has a valid session in memory.
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
 
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .upsert(profilePayload, { onConflict: "id" });
-
-    if (profileError) {
-      setBusy(false);
-      setError(profileError.message);
-      return;
-    }
-
-    if (selectedRole === "driver") {
-      const { error: driverError } = await supabase
-        .from("driver_details")
-        .upsert(
-          {
-            profile_id: session.user.id,
-            vehicle_type: vehicleType,
-            load_capacity_kg: Number(capacity) || null,
-            is_available: true,
-            current_location: ewkt(location),
-          },
-          { onConflict: "profile_id" },
-        );
-      if (driverError) {
-        setBusy(false);
-        setError(driverError.message);
+      if (!currentSession?.user) {
+        setError("Your session expired. Please sign in again.");
         return;
       }
-    }
+      const user = currentSession.user;
 
-    await refreshProfile();
-    setBusy(false);
-    navigate(homeForRole(selectedRole), { replace: true });
+      const profilePayload = {
+        id: user.id,
+        full_name: fullName.trim(),
+        phone_number: user.phone ?? null,
+        role: selectedRole,
+        // Farmers are hard-restricted to "Kumasi" in the database (any other
+        // value is rejected), so skip whatever's in the region field entirely.
+        region: selectedRole === "farmer" ? "Kumasi" : region.trim() || null,
+        location: ewkt(location),
+      };
+
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .upsert(profilePayload, { onConflict: "id" });
+
+      if (profileError) {
+        console.error("Failed to save profile:", profileError);
+        setError(profileError.message);
+        return;
+      }
+
+      if (selectedRole === "driver") {
+        const { error: driverError } = await supabase
+          .from("driver_details")
+          .upsert(
+            {
+              profile_id: user.id,
+              vehicle_type: vehicleType,
+              load_capacity_kg: Number(capacity) || null,
+              is_available: true,
+              current_location: ewkt(location),
+            },
+            { onConflict: "profile_id" },
+          );
+        if (driverError) {
+          console.error("Failed to save driver details:", driverError);
+          setError(driverError.message);
+          return;
+        }
+      }
+
+      await refreshProfile();
+      navigate(homeForRole(selectedRole), { replace: true });
+    } catch (err) {
+      console.error("Onboarding submit failed:", err);
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   const roleOptions: { value: UserRole; label: string; desc: string }[] = [
@@ -157,13 +178,15 @@ export function Onboarding() {
             />
           </Field>
 
-          <Field label="Region" hint="e.g. Western, Ashanti">
-            <Input
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-              placeholder="Western"
-            />
-          </Field>
+          {selectedRole !== "farmer" && (
+            <Field label="Region" hint="e.g. Western, Ashanti">
+              <Input
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                placeholder="Western"
+              />
+            </Field>
+          )}
 
           <LocationPicker
             value={location}

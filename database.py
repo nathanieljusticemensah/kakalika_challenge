@@ -44,9 +44,9 @@ if __name__ == "__main__":
     # Only runs sys.exit / prints when executed directly, not on import
     try:
         get_supabase_client()
-        print("✅ Supabase client initialized.")
+        print(" Supabase client initialized.")
     except RuntimeError as e:
-        print(f"❌ Error: {e}")
+        print(f" Error: {e}")
         sys.exit(1)
 
     test_connection()

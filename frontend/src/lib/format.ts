@@ -28,6 +28,12 @@ export function formatLatLng(loc: LatLng | string | null | undefined): string {
   return `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}`;
 }
 
+export function googleMapsUrl(loc: LatLng | string | null | undefined): string | null {
+  if (!loc) return null;
+  const query = typeof loc === "string" ? loc : `${loc.lat},${loc.lng}`;
+  return `https://www.google.com/maps?q=${encodeURIComponent(query)}`;
+}
+
 export function metersToKm(m: number): string {
   return `${(m / 1000).toFixed(1)} km`;
 }

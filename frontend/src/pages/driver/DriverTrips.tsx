@@ -5,7 +5,7 @@ import { fetchDriverDeliveries } from "../../lib/deliveries";
 import { updateDeliveryStatus } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 import type { Delivery } from "../../types";
-import { formatDate, formatGHS } from "../../lib/format";
+import { formatDate, formatGHS, formatLatLng, googleMapsUrl } from "../../lib/format";
 import {
   Alert,
   Button,
@@ -168,9 +168,40 @@ function TripCard({
           </Button>
         )}
       </div>
+      <div className="mt-5 flex flex-wrap gap-4 border-t border-slate-100 pt-5">
+        <LocationLink label="Pickup (farm)" location={delivery.pickup_location} />
+        <LocationLink label="Dropoff (buyer)" location={delivery.dropoff_location} />
+      </div>
       <div className="mt-5 border-t border-slate-100 pt-5">
         <DeliveryTimeline delivery={delivery} />
       </div>
     </Card>
+  );
+}
+
+function LocationLink({
+  label,
+  location,
+}: {
+  label: string;
+  location: Delivery["pickup_location"];
+}) {
+  const url = googleMapsUrl(location);
+  return (
+    <div className="text-sm">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
+      {url ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-brand-600 hover:underline"
+        >
+          {formatLatLng(location)} · Open in Maps
+        </a>
+      ) : (
+        <p className="text-slate-500">{formatLatLng(location)}</p>
+      )}
+    </div>
   );
 }
