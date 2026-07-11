@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { Product } from "../types";
 import { formatGHS, formatLatLng, titleCase } from "../lib/format";
 import { Card } from "./ui";
@@ -10,15 +10,19 @@ export function ProductCard({
   product: Product;
   footer?: ReactNode;
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = Boolean(product.image_url) && !imageFailed;
+
   return (
-    <Card className="flex flex-col overflow-hidden">
-      <div className="aspect-[4/3] w-full bg-slate-100">
-        {product.image_url ? (
+    <Card className="flex h-[380px] flex-col overflow-hidden">
+      <div className="h-40 w-full shrink-0 bg-slate-100">
+        {showImage ? (
           <img
-            src={product.image_url}
+            src={product.image_url ?? undefined}
             alt={product.crop_type}
             className="h-full w-full object-cover"
             loading="lazy"
+            onError={() => setImageFailed(true)}
           />
         ) : (
           <div className="grid h-full place-items-center text-slate-300">
@@ -28,9 +32,9 @@ export function ProductCard({
           </div>
         )}
       </div>
-      <div className="flex flex-1 flex-col p-4">
+      <div className="flex flex-1 flex-col overflow-hidden p-4">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-base font-semibold text-slate-900">
+          <h3 className="truncate text-base font-semibold text-slate-900">
             {titleCase(product.crop_type)}
           </h3>
           <span className="whitespace-nowrap text-base font-bold text-brand-700">
@@ -40,13 +44,13 @@ export function ProductCard({
             </span>
           </span>
         </div>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 truncate text-sm text-slate-500">
           {Number(product.quantity)} {product.unit} available
         </p>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 truncate text-xs text-slate-400">
           📍 {formatLatLng(product.location)}
         </p>
-        {footer && <div className="mt-3 pt-3">{footer}</div>}
+        {footer && <div className="mt-auto pt-3">{footer}</div>}
       </div>
     </Card>
   );

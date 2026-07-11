@@ -21,27 +21,35 @@ export function LocationPicker({
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const locationUnavailableMessage =
+    "Location access unavailable - enter coordinates manually";
+
   function useMyLocation() {
     if (!navigator.geolocation) {
-      setError("Geolocation is not supported by this browser.");
+      setError(locationUnavailableMessage);
       return;
     }
     setLocating(true);
     setError(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        onChange({
-          lat: pos.coords.latitude.toFixed(6),
-          lng: pos.coords.longitude.toFixed(6),
-        });
-        setLocating(false);
-      },
-      (err) => {
-        setError(err.message);
-        setLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          onChange({
+            lat: pos.coords.latitude.toFixed(6),
+            lng: pos.coords.longitude.toFixed(6),
+          });
+          setLocating(false);
+        },
+        () => {
+          setError(locationUnavailableMessage);
+          setLocating(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000 },
+      );
+    } catch {
+      setError(locationUnavailableMessage);
+      setLocating(false);
+    }
   }
 
   return (
