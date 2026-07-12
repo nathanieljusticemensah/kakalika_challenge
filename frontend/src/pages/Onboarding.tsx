@@ -17,7 +17,7 @@ function ewkt(loc: LatLngValue): string {
 }
 
 export function Onboarding() {
-  const { session, profile, role, loading, refreshProfile } = useAuth();
+  const { profile, role, loading, refreshProfile } = useAuth();
   const navigate = useNavigate();
 
   const [selectedRole, setSelectedRole] = useState<UserRole>("farmer");
